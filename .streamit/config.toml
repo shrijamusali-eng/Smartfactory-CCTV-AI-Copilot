@@ -1,0 +1,7 @@
+[server]
+# Instructs Streamlit to dynamically watch and include the root module path
+clientPaths = true
+
+[python]
+# Forces the execution context to remain relative to the project root directory
+runFromRoot = true
