@@ -1,15 +1,4 @@
-# --- HACK TO FIX HEADLESS OPENCV STREAMLIT CRASH ---
 import sys
-import subprocess
-
-try:
-    import cv2
-except ImportError:
-    # Force reinstall the headless wrapper if the runtime environment corrupts it
-    subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "opencv-python", "opencv-python-headless", "-y"])
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "opencv-python-headless"])
-# ---------------------------------------------------
-
 import os
 import tempfile
 from datetime import date, timedelta
@@ -24,6 +13,7 @@ import streamlit as st
 ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
+
 
 # ==========================================================
 # Imports
