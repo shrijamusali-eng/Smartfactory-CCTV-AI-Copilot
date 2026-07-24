@@ -1,31 +1,56 @@
+# =========================
 # Environment variables
+# =========================
 .env
-
-# Environment example (keep this!)
 !.env.example
 
-# Database
-factory.db
-*.db
-
-# Virtual environments
+# =========================
+# Python Virtual Environment
+# =========================
 venv/
 .venv/
 
-# Python cache
+# =========================
+# Python Cache
+# =========================
 __pycache__/
 *.py[cod]
+*.pyo
 
-# VS Code
-.vscode/
+# =========================
+# Database
+# =========================
+*.db
+factory.db
 
-# Streamlit secrets
+# =========================
+# Streamlit
+# =========================
 .streamlit/secrets.toml
 
-# Generated reports
-reports/*.pdf
-*.pdf
+# =========================
+# VS Code
+# =========================
+.vscode/
 
-# Temporary files
+# =========================
+# Reports
+# =========================
+reports/*.pdf
+
+# =========================
+# Temporary Files
+# =========================
 *.tmp
 temp/
+
+# =========================
+# Operating System
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Git
+# =========================
+.git/
