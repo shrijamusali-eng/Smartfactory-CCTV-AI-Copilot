@@ -1,6 +1,8 @@
 import sys
 import os
+import urllib.request
 from ultralytics import YOLO
+import streamlit as st
 
 # ==========================================================
 # Path Setup
@@ -12,9 +14,34 @@ if ROOT_DIR not in sys.path:
 from database import db
 
 # ==========================================================
-# Load PPE Model
+# Model Path & Dynamic Downloader Setup
 # ==========================================================
-model = YOLO("models/best.pt")
+MODEL_DIR = os.path.join(ROOT_DIR, "models")
+MODEL_PATH = os.path.join(MODEL_DIR, "best.pt")
+
+# TODO: Replace this URL with your actual GitHub Release download URL or direct Google Drive link
+MODEL_URL = "https://github.com/shrijamusali-eng/Smartfactory-CCTV-AI-Copilot/releases/download/v1.0.0/best.pt"
+
+@st.cache_resource
+def get_model():
+    """
+    Lazy-loads the YOLO model. If the weights file is missing (e.g., in cloud deployment),
+    it automatically downloads it from the remote URL before loading it.
+    """
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    
+    if not os.path.exists(MODEL_PATH):
+        print(f"📦 Weights file missing at {MODEL_PATH}. Downloading from remote storage...")
+        with st.spinner("Downloading AI model weights (this may take a moment on first boot)..."):
+            try:
+                # Download the weights file dynamically
+                urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+                print("✅ Download complete!")
+            except Exception as e:
+                raise FileNotFoundError(f"Failed to dynamically download model weights: {e}")
+                
+    return YOLO(MODEL_PATH)
+
 
 # ==========================================================
 # Classes that represent SAFETY VIOLATIONS
@@ -32,7 +59,6 @@ def check(tracked, class_names):
     """
     Convert tracked detections into violation dictionaries.
     """
-
     violations = []
 
     if tracked is None:
@@ -51,7 +77,6 @@ def check(tracked, class_names):
         tracked.tracker_id,
         tracked.confidence,
     ):
-
         if tracker_id is None:
             continue
 
@@ -65,9 +90,7 @@ def check(tracked, class_names):
         )
 
         if label in VIOLATION_LABELS:
-
             print("✅ VIOLATION DETECTED")
-
             violations.append(
                 {
                     "worker_id": int(tracker_id),
@@ -89,21 +112,20 @@ def process_frame(frame):
     """
     Runs detection on a single frame and stores violations.
     """
+    # Use the dynamic model loader
+    model_instance = get_model()
 
-    results = model.predict(
+    results = model_instance.predict(
         source=frame,
         conf=0.35,
         verbose=False,
     )
 
     for r in results:
-
         for box in r.boxes:
-
-            label = model.names[int(box.cls[0])].lower().strip()
+            label = model_instance.names[int(box.cls[0])].lower().strip()
 
             if label in VIOLATION_LABELS:
-
                 db.save_event(
                     zone="Factory_Floor",
                     worker_id=1,
