@@ -20,7 +20,7 @@ from agents.tools import (
     get_stats,
 )
 
-from config import GROQ_API_KEY
+from app_config import GROQ_API_KEY
 
 SYSTEM_PROMPT = """
 You are SmartFactory Copilot.

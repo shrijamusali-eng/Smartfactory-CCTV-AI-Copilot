@@ -5,7 +5,7 @@ database statistics fallbacks.
 """
 
 from langchain_groq import ChatGroq
-from config import GROQ_API_KEY
+from app_config import GROQ_API_KEY
 from agents.database_api import query_incidents_sql, get_stats
 
 # Initialize the report generation model
