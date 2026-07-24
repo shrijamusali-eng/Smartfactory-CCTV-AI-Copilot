@@ -1,3 +1,5 @@
+GROQ_API_KEY="gsk_placeholder_replace_this_locally"
+
 [server]
 # Instructs Streamlit to dynamically watch and include the root module path
 clientPaths = true

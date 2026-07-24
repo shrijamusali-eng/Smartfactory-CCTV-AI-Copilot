@@ -1,10 +1,19 @@
 """
-Generate report summary without using Gemini.
-This ensures PDF reports always work, even if the AI quota is exhausted.
+Generate report summary using Groq instead of Gemini.
+This ensures PDF reports utilize Llama 3.3 70B while retaining 
+database statistics fallbacks.
 """
 
+from langchain_groq import ChatGroq
+from config import GROQ_API_KEY
 from agents.database_api import query_incidents_sql, get_stats
 
+# Initialize the report generation model
+report_llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    groq_api_key=GROQ_API_KEY,
+    temperature=0,
+)
 
 def write_incident_summary(start_date, end_date):
 

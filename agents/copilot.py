@@ -4,7 +4,7 @@ import time
 import uuid
 import streamlit as st
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage
@@ -20,7 +20,7 @@ from agents.tools import (
     get_stats,
 )
 
-from config import GEMINI_API_KEY
+from config import GROQ_API_KEY
 
 SYSTEM_PROMPT = """
 You are SmartFactory Copilot.
@@ -34,9 +34,9 @@ Always use the available tools whenever appropriate.
 # ---------- Agent ----------
 @st.cache_resource
 def get_agent():
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=GEMINI_API_KEY,
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        groq_api_key=GROQ_API_KEY,
         temperature=0,
     )
 
@@ -64,18 +64,24 @@ def ask(query: str) -> str:
 
     agent = get_agent()
 
-    response = agent.invoke(
-        {
-            "messages": [
-                HumanMessage(content=query)
-            ]
-        },
-        config={
-            "configurable": {
-                "thread_id": st.session_state.thread_id
-            }
-        },
-    )
+    # --- Graceful Error Handling Wrapper ---
+    try:
+        response = agent.invoke(
+            {
+                "messages": [
+                    HumanMessage(content=query)
+                ]
+            },
+            config={
+                "configurable": {
+                    "thread_id": st.session_state.thread_id
+                }
+            },
+        )
+    except Exception as e:
+        if "429" in str(e):
+            return "⚠️ AI service is temporarily unavailable. Please try again later."
+        return f"❌ {e}"
 
     content = response["messages"][-1].content
 
