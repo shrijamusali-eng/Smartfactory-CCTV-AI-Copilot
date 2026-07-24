@@ -339,10 +339,14 @@ except Exception as e:
 st.markdown("---")
 st.header("📄 Executive Safety Report")
 
+# Keep generated PDF across Streamlit reruns
+if "pdf_bytes" not in st.session_state:
+    st.session_state.pdf_bytes = None
+
 report_all_time = st.checkbox(
     "Cover all time",
     value=True,
-    help="Uncheck to scope the AI-written summary to a specific date range.",
+    help="Uncheck to generate the report for a custom date range.",
 )
 
 date_col1, date_col2 = st.columns(2)
@@ -366,29 +370,37 @@ if st.button(
     use_container_width=True,
 ):
     try:
-        with st.spinner("Generating report..."):
+        with st.spinner("Generating Executive Report..."):
+
             if report_all_time:
-                start_date, end_date = "all time", date.today().isoformat()
+                start_date = "all time"
+                end_date = date.today().isoformat()
             else:
                 start_date = report_start_date.isoformat()
                 end_date = report_end_date.isoformat()
 
+            # Receives the explicit absolute path back from the engine
             pdf_path = generate_pdf_report(
-                 stats=stats,
-                 start_date=start_date,
-                 end_date=end_date,
+                stats=stats,
+                start_date=start_date,
+                end_date=end_date,
             )
 
-            with open(pdf_path, "rb") as pdf_file:
-                pdf_bytes = pdf_file.read()
+            # Read the generated PDF into memory safely
+            with open(pdf_path, "rb") as f:
+                st.session_state.pdf_bytes = f.read()
 
-            st.download_button(
-                label="📥 Download Report",
-                data=pdf_bytes,
-                file_name="SmartFactory_Safety_Report.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-            )
+            st.success("✅ Report generated successfully!")
 
     except Exception as e:
         st.error(f"Report Generation Error: {e}")
+
+# Always show the download button after generation
+if st.session_state.pdf_bytes is not None:
+    st.download_button(
+        label="📥 Download Executive Safety Report",
+        data=st.session_state.pdf_bytes,
+        file_name="SmartFactory_Safety_Report.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+    )

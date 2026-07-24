@@ -1,37 +1,11 @@
-"""
-PDF report generation for SmartFactory CCTV Safety Monitor.
-
-I don't have your actual Day 4 version of this file (it wasn't part of what
-you uploaded), so the scaffolding below - fonts, page setup, table layout -
-is a reasonable reconstruction based on the fpdf calls shown in the Day 5
-instructions (pdf.set_font / pdf.cell / pdf.multi_cell) and the stats shape
-already used in app.py (stats["by_zone"] etc). If your real Day 4 file has
-different styling, a logo, different helper names, etc., keep that file and
-just port over the three highlighted pieces:
-  1. `from agents.report_writer import write_incident_summary`
-  2. the `summary_text = write_incident_summary(start_date, end_date)` call
-  3. the `pdf.multi_cell(0, 7, summary_text)` block right after it
-
-Assumes get_stats() returns a dict shaped like:
-    {
-        "total": int,
-        "today": int,
-        "active": int,
-        "by_zone": [(zone_name, count), ...],
-        "by_type": [(violation_type, count), ...],
-    }
-`by_zone` is confirmed by app.py's chart code. `by_type` is assumed, to
-match the "existing by-type ... sections" mentioned in the Day 5 notes -
-adjust the key name in _draw_table's calls below if yours differs.
-"""
-
 import os
 from datetime import date
-
 from fpdf import FPDF
-
 from agents.report_writer import write_incident_summary
 
+# Get the absolute path of the project root directory
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 
 def _sanitize_for_pdf(text):
     """fpdf's core Helvetica font only supports latin-1. The AI-written
@@ -39,6 +13,8 @@ def _sanitize_for_pdf(text):
     smart quotes/em-dashes that aren't in that range - which throws a
     hard error mid-report instead of just looking slightly off. Normalize
     the common cases and fall back to stripping anything else."""
+    if not text:
+        return ""
     replacements = {
         "\u2018": "'", "\u2019": "'",
         "\u201c": '"', "\u201d": '"',
@@ -74,19 +50,42 @@ def _draw_table(pdf, title, rows, col_labels=("Category", "Count")):
     pdf.ln(6)
 
 
-def generate_pdf_report(stats, start_date=None, end_date=None, path="reports/safety_report.pdf"):
+def generate_pdf_report(stats, start_date=None, end_date=None, path=None):
     """Build the executive safety PDF report.
 
     start_date / end_date scope the AI-written narrative summary at the
-    top of the report. Defaults to "all time" if not given, so existing
-    callers that only pass `stats` keep working.
+    top of the report. Defaults to "all time" if not given.
     """
+    # Enforce absolute path targeting to prevent Streamlit environment drift
+    if path is None:
+        path = os.path.join(PROJECT_ROOT, "reports", "safety_report.pdf")
+    else:
+        path = os.path.abspath(path)
+
     if start_date is None:
         start_date = "all time"
     if end_date is None:
         end_date = date.today().isoformat()
 
-    summary_text = _sanitize_for_pdf(write_incident_summary(start_date, end_date))
+    # --- ROBUST API FALLBACK IMPLEMENTATION ---
+    try:
+        summary_text = _sanitize_for_pdf(
+            write_incident_summary(start_date, end_date)
+        )
+    except Exception as e:
+        print(f"AI Summary Error: {e}")
+        
+        # Keep the report generation alive with an explicit metrics backup summary
+        summary_text = (
+            "AI-generated incident summary is currently unavailable because "
+            "the language model quota has been exceeded.\n\n"
+            f"Reporting Period: {start_date} to {end_date}\n\n"
+            f"Total Incidents: {stats.get('total', 0)}\n"
+            f"Today's Incidents: {stats.get('today', 0)}\n"
+            f"Active Violations: {stats.get('active', 0)}\n\n"
+            "Please review the detailed statistics and violation tables below."
+        )
+        summary_text = _sanitize_for_pdf(summary_text)
 
     pdf = FPDF()
     pdf.add_page()
@@ -115,7 +114,7 @@ def generate_pdf_report(stats, start_date=None, end_date=None, path="reports/saf
     pdf.cell(0, 7, f"Active Violations: {stats.get('active', 0)}")
     pdf.ln(10)
 
-    # ---- AI-written narrative summary (new in Day 5) ----------------------
+    # ---- Narrative summary section ----------------------------------------
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "Incident Summary")
     pdf.ln(9)
@@ -124,13 +123,15 @@ def generate_pdf_report(stats, start_date=None, end_date=None, path="reports/saf
     pdf.multi_cell(0, 7, summary_text)
     pdf.ln(5)
 
-    # ---- Breakdown tables (same structure as Day 4) -----------------------
+    # ---- Breakdown tables -------------------------------------------------
     _draw_table(pdf, "Violations by Type", stats.get("by_type", []), ("Violation Type", "Count"))
     _draw_table(pdf, "Violations by Zone", stats.get("by_zone", []), ("Zone", "Count"))
 
-    out_dir = os.path.dirname(path)
-    if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
+    # Ensure the directory tree structures exist prior to output compilation
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+        
+    # Compile the file out to disk
     pdf.output(path)
 
-    return path
+    # Return the absolute path explicitly to app.py
+    return os.path.abspath(path)
