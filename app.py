@@ -21,7 +21,7 @@ from database.db import init_db, get_connection
 from agents.copilot import ask
 from agents.tools import get_stats
 
-from cctv.safety_engine import check
+from cctv.safety_engine import check, get_model
 from cctv.incident_pipeline import handle_violations
 from cctv.violation_tracker import ViolationTracker
 from cctv.multi_camera_runner import run_all_cameras
@@ -95,100 +95,60 @@ with left_col:
                 processing_succeeded = False
 
                 try:
-
-                    # Import here to avoid circular imports
+                    # Leverage streaming and tracking pipeline layers safely
                     from cctv.stream import get_frames
-                    from models.detector import detect, model
                     from cctv.tracker import track
 
-                    yolo_model = (
-                        model[0]
-                        if isinstance(model, tuple)
-                        else model
-                    )
+                    # Safely load weights only when explicitly requested
+                    yolo_model = get_model()
 
                     tracker = ViolationTracker(
                         timeout_seconds=3
                     )
 
                     progress = st.progress(0)
-
                     frame_count = 0
                     total_violations = 0
 
                     for frame in get_frames(temp_video.name):
-
                         frame_count += 1
 
-                        # ==========================================================
-                        # YOLO Detection
-                        # ==========================================================
-                        results = detect(frame)
-
-                        # model.predict() always returns a list
+                        # YOLO Prediction via lazy-loaded instance
+                        results = yolo_model.predict(
+                            source=frame,
+                            conf=0.35,
+                            verbose=False
+                        )
                         result = results[0]
 
                         print("\n" + "=" * 80)
                         print(f"FRAME: {frame_count}")
-
                         print("YOLO Boxes:", len(result.boxes))
 
                         if len(result.boxes):
-
                             detected_labels = [
                                 yolo_model.names[int(cls)]
                                 for cls in result.boxes.cls
                             ]
-
                             print("Detected Labels :", detected_labels)
                             print("Confidence      :", result.boxes.conf.tolist())
-
                         else:
-
                             print("❌ No detections from YOLO")
-
                         print("=" * 80)
 
-                        # ==========================================================
-                        # Tracking
-                        # ==========================================================
+                        # Tracking Analysis
                         tracked = track(result)
-
                         print("Tracked Object Count:", len(tracked))
 
-                        # -------------------------
-                        # Safety Engine
-                        # -------------------------
+                        # Safety Violation Engine Parsing
                         violations = check(
                             tracked,
                             yolo_model.names,
                         )
                         print("Violations Found:", len(violations))
-
                         total_violations += len(violations)
 
-                        # -------------------------
-                        # DEBUG OUTPUT
-                        # -------------------------
-                        print("=" * 70)
-                        print(f"Frame: {frame_count}")
-
-                        try:
-                            print("Tracker IDs :", tracked.tracker_id)
-                        except Exception:
-                            print("Tracker IDs : None")
-
-                        try:
-                            print("Class IDs   :", tracked.class_id)
-                        except Exception:
-                            print("Class IDs   : None")
-
-                        print("Violations  :", violations)
-                        print("=" * 70)
-
-                        # -------------------------
-                        # Save incidents
-                        # -------------------------
+                        # Save incident frames via data pipeline layer
                         handle_violations(
                             violations=violations,
                             frame=frame,
@@ -203,9 +163,7 @@ with left_col:
                                 min(frame_count / 500, 1.0)
                             )
 
-                    # ==================================================
-                    # Flush remaining incidents
-                    # ==================================================
+                    # Flush lagging buffer sequences out of memory
                     handle_violations(
                         violations=[],
                         frame=None,
@@ -226,7 +184,6 @@ with left_col:
                     processing_succeeded = True
 
                 except Exception as e:
-
                     st.exception(e)
 
                 if processing_succeeded:
@@ -248,13 +205,11 @@ with left_col:
                 )
 
             with st.spinner("Processing all registered cameras..."):
-
                 run_all_cameras(
                     progress_callback=update_progress
                 )
 
             st.success("🎉 All cameras processed successfully!")
-
             st.rerun()
 
 # ==========================================================
@@ -268,7 +223,6 @@ with right_col:
         st.session_state.messages = []
 
     for msg in st.session_state.messages:
-
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
@@ -277,7 +231,6 @@ with right_col:
     )
 
     if prompt:
-
         st.session_state.messages.append(
             {
                 "role": "user",
@@ -289,15 +242,10 @@ with right_col:
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-
             with st.spinner("Thinking..."):
-
                 try:
-
                     response = ask(prompt)
-
                 except Exception as e:
-
                     response = f"❌ {e}"
 
                 st.markdown(response)
@@ -352,6 +300,10 @@ try:
     with camera_col:
         st.subheader("📷 Violations by Camera")
         with get_connection() as conn:
+            # Enforce row factory mappings or dict bindings explicitly
+            conn.row_factory = lambda cursor, row: {
+                col[0]: row[idx] for idx, col in enumerate(cursor.description)
+            }
             camera_rows = conn.execute(
                 """
                 SELECT
@@ -366,14 +318,12 @@ try:
         # Display camera statistics
         if camera_rows:
             if len(camera_rows) <= 4:
-                # Show metric cards for a small number of cameras
                 for row in camera_rows:
                     st.metric(
                         label=row["camera"],
                         value=f"{row['total']} incidents"
                     )
             else:
-                # Show a table if there are many cameras
                 camera_df = pd.DataFrame(camera_rows)
                 camera_df.columns = ["Camera Source", "Total Violations"]
                 st.dataframe(camera_df, use_container_width=True, hide_index=True)
@@ -415,11 +365,8 @@ if st.button(
     "Generate Executive PDF Report",
     use_container_width=True,
 ):
-
     try:
-
         with st.spinner("Generating report..."):
-
             if report_all_time:
                 start_date, end_date = "all time", date.today().isoformat()
             else:
@@ -444,5 +391,4 @@ if st.button(
             )
 
     except Exception as e:
-
         st.error(f"Report Generation Error: {e}")
