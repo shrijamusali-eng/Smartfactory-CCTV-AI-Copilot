@@ -1,17 +1,26 @@
+import os
 import chromadb
+from chromadb.config import Settings
 
-# PersistentClient ensures data writes directly to disk and survives app reboots
-client = chromadb.PersistentClient(path="database/chroma")
+# Ensure the database folder exists
+os.makedirs("database/chroma", exist_ok=True)
 
-# Create or fetch the specific collection for factory safety records
-collection = client.get_or_create_collection("factory_incidents")
+# Initialize persistent Chroma client
+client = chromadb.PersistentClient(
+    path="database/chroma",
+    settings=Settings(anonymized_telemetry=False)
+)
+
+# Create or load the collection
+collection = client.get_or_create_collection(
+    name="factory_incidents"
+)
 
 def add_incident(text, metadata):
-    # Construct a unique primary key using timestamp and worker id to avoid duplicate rows
     doc_id = f"{metadata['timestamp']}_{metadata['worker_id']}"
-    
+
     collection.add(
         documents=[text],
         metadatas=[metadata],
-        ids=[doc_id]
+        ids=[doc_id],
     )
