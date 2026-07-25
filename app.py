@@ -6,6 +6,12 @@ from datetime import date, timedelta
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import streamlit as st
+import chromadb
+
+st.write("ChromaDB version:", chromadb.__version__)
+
+# rest of your imports...
 
 # ==========================================================
 # Path Setup
