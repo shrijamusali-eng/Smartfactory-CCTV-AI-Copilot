@@ -30,9 +30,6 @@ On top of that detection layer sits an **agentic AI safety assistant**: instead 
 
 The project started as a 4-day guided build, then went through a second pass to fix correctness bugs, fine-tune the detection model on real data, deepen the agent's reasoning, and harden the deployment pipeline for Streamlit Community Cloud. See [Known Limitations](#known-limitations) for an honest account of what's simplified and what isn't.
 
-## Adding a Demo Video
-
-Screenshots are already in place above. To add the demo video: sign up free at [loom.com](https://www.loom.com), install the Loom browser extension, open the live app, click the Loom icon → **Screen + Cam** (or Screen Only) → **Start Recording**, walk through uploading footage, live stats updating, a couple of AI Copilot questions, and generating a PDF report (2–3 minutes is plenty), stop the recording, and paste the auto-generated share link into the **🎥 Demo Video** line above.
 
 ## 🚀 Quick Start & Installation
 
