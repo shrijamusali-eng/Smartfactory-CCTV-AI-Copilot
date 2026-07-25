@@ -8,6 +8,7 @@
 # Python Virtual Environment
 # =========================
 venv/
+venv311/
 .venv/
 
 # =========================
@@ -32,11 +33,25 @@ factory.db
 # VS Code
 # =========================
 .vscode/
+.idea/
 
 # =========================
-# Reports
+# Generated Reports
 # =========================
+outputs/
 reports/*.pdf
+
+# =========================
+# Generated Incident Images
+# =========================
+assets/incidents/
+
+# =========================
+# Uploaded Videos
+# =========================
+*.mp4
+*.avi
+*.mov
 
 # =========================
 # Temporary Files
@@ -49,8 +64,3 @@ temp/
 # =========================
 .DS_Store
 Thumbs.db
-
-# =========================
-# Git
-# =========================
-.git/
