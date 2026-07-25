@@ -32,3 +32,13 @@ except Exception:
     print("❌ FAILED at get_or_create_collection()")
     traceback.print_exc()
     raise
+
+
+def add_incident(text, metadata):
+    doc_id = f"{metadata['timestamp']}_{metadata['worker_id']}"
+
+    collection.upsert(
+        documents=[text],
+        metadatas=[metadata],
+        ids=[doc_id],
+    )
