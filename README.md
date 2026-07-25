@@ -10,7 +10,7 @@
 
 **🔗 Live App:** [smartfactory-cctv-ai-copilot.streamlit.app](https://smartfactory-cctv-ai-copilot-5xfsyojacxgcmzc4rerdqh.streamlit.app/)
 
-**🎥 Demo Video:** _[Add your Loom link here once recorded — e.g. `https://loom.com/share/your-video-id`]_
+**🎥 Demo Video:** _[https://www.loom.com/share/71b219c0ec814260aa5a6815f8fb2839]_
 
 | Dashboard | AI Copilot |
 |---|---|
