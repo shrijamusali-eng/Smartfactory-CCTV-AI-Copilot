@@ -1,6 +1,6 @@
-# SmartFactory Copilot
+# 🏭 SmartFactory Copilot
 
-**AI-powered CCTV safety monitoring for factories** — a computer-vision pipeline that detects PPE violations in real time, an agentic AI assistant that can answer questions about the data, and a Streamlit dashboard that ties it all together.
+**AI-powered Workplace Safety Monitoring Platform** — a computer-vision pipeline that detects PPE violations in real time, an agentic AI assistant that can answer questions about the data, and a Streamlit dashboard that ties it all together.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit&logoColor=white)
@@ -8,10 +8,17 @@
 ![LangGraph](https://img.shields.io/badge/Agent-LangGraph-1C3C3C)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-**🔗 Live app:** [your-app-name.streamlit.app](https://smartfactory-cctv-ai-copilot-kifg2sg9vh4raur9bbsokh.streamlit.app/) *(replace with your deployed Streamlit URL)*
+**🔗 Live App:** [smartfactory-cctv-ai-copilot.streamlit.app](https://smartfactory-cctv-ai-copilot-5xfsyojacxgcmzc4rerdqh.streamlit.app/)
 
-![Dashboard Preview](assets/screenshot.png)
-*(Swap in a real screenshot or short GIF of your running dashboard at `assets/screenshot.png` — a visual first impression goes a long way with recruiters and reviewers.)*
+**🎥 Demo Video:** _[Add your Loom link here once recorded — e.g. `https://loom.com/share/your-video-id`]_
+
+| Dashboard | AI Copilot |
+|---|---|
+| ![Dashboard](assets/screenshot_dashboard.png) | ![AI Copilot](assets/screenshot_copilot.png) |
+
+| Live Detection | Factory Safety Analytics |
+|---|---|
+| ![Live Detection](assets/screenshot_detection.png) | ![Factory Safety Analytics](assets/screenshot_analytics.png) |
 
 ---
 
@@ -21,20 +28,115 @@ SmartFactory Copilot watches CCTV footage the way a safety officer would — con
 
 On top of that detection layer sits an **agentic AI safety assistant**: instead of answering from one fixed prompt, it decides for itself whether a question needs an exact database lookup, a semantic search, or a stats summary — and can chain multiple lookups together to answer comparison questions like *"is this week better or worse than last week?"* Everything is surfaced through a single Streamlit dashboard: upload footage, watch live metrics update, chat with the assistant, and download a one-click PDF safety report.
 
-The project started as a 4-day guided build, then went through a second pass to fix correctness bugs, fine-tune the detection model on real data, deepen the agent's reasoning, and add multi-camera support. See [Known Limitations](#known-limitations) for an honest account of what's simplified and what isn't.
+The project started as a 4-day guided build, then went through a second pass to fix correctness bugs, fine-tune the detection model on real data, deepen the agent's reasoning, and harden the deployment pipeline for Streamlit Community Cloud. See [Known Limitations](#known-limitations) for an honest account of what's simplified and what isn't.
+
+## Adding a Demo Video
+
+Screenshots are already in place above. To add the demo video: sign up free at [loom.com](https://www.loom.com), install the Loom browser extension, open the live app, click the Loom icon → **Screen + Cam** (or Screen Only) → **Start Recording**, walk through uploading footage, live stats updating, a couple of AI Copilot questions, and generating a PDF report (2–3 minutes is plenty), stop the recording, and paste the auto-generated share link into the **🎥 Demo Video** line above.
+
+## 🚀 Quick Start & Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/<your-username>/smartfactory_copilot.git
+cd smartfactory_copilot
+
+# 2. Set up the Python virtual environment
+python3 -m venv venv311
+source venv311/bin/activate  # On Windows use: venv311\Scripts\activate
+
+# 3. Upgrade pip and install pinned dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 4. Configure local environment secrets
+cat << 'EOF' > .env
+GROQ_API_KEY="your_groq_api_key_here"
+ENVIRONMENT="development"
+EOF
+# Get a free key at https://console.groq.com
+
+# 5. Launch the Streamlit web dashboard
+streamlit run app.py
+```
+
+The dashboard opens automatically at `http://localhost:8501`.
+
+### Prerequisites
+
+- Python 3.11+
+- Git
+- A free [Groq API key](https://console.groq.com)
+- (Optional, for retraining) A free [Roboflow](https://roboflow.com) account and access to [Google Colab](https://colab.research.google.com)
+
+### Adding the detection model weights
+
+Model weights aren't committed to this repo (they're large binary files — GitHub blocks pushes over 100MB per file). Download `best.pt` from the [Construction Site Safety project on Roboflow](https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety) (or use your own fine-tuned `best_finetuned.pt`) and place it inside `models/`.
+
+### (Optional) Register cameras for multi-camera mode
+
+```bash
+python scripts/setup_cameras.py
+```
+
+## ⚙️ Recent Development Updates
+
+During the production-readiness pass, the following improvements were made:
+
+- **Persistent Vector Storage** — ChromaDB is used to maintain semantic embeddings of safety incidents, enabling natural-language retrieval and contextual reasoning by the AI assistant. As part of hardening this for cloud deployment, a stale `database/chroma/chroma.sqlite3` file that had been committed to the repo before `.gitignore` was updated was fully untracked from git history — since `.gitignore` only blocks new untracked files, the old vector index was otherwise still shipping with every "fresh" deploy.
+- **Production Deployment Rigging** — Configured a `.gitignore` policy that excludes volatile runtime assets, heavy binaries (`.pt`, `.mp4`), and the vector index (`database/chroma/`), keeping cloud builds lightweight and free of local cache leaks.
+- **Headless Cloud Computer Vision** — Swapped standard OpenCV for the pinned `opencv-python-headless` distribution so the CV pipeline runs inside headless cloud containers without triggering Qt/GUI runtime crashes.
 
 ## Key Features
 
-- **🦺 PPE violation detection** — a fine-tuned YOLOv8 model flags missing hardhats and safety vests frame by frame, filtering out any detection the model is less than 50% confident about.
+- **🦺 PPE violation detection** — a fine-tuned YOLOv8 model flags missing hardhats, vests, and masks frame by frame, filtering out any detection the model is less than 50% confident about.
 - **🔁 Persistent worker tracking** — ByteTrack (via `supervision`) assigns a consistent ID to each worker across frames instead of re-detecting them from scratch.
 - **🧩 Incident deduplication** — a continuous violation (e.g., 10 seconds without a hardhat, ~300 frames) collapses into **one** incident with a start time, end time, and duration — not hundreds of duplicate rows.
-- **📸 Automatic snapshot evidence** — every incident is saved with a timestamped image as visual proof.
+- **📸 Automatic snapshot evidence** — every incident is saved with a timestamped image as visual proof under `assets/incidents/`.
 - **🗃️ Dual-database storage** — SQLite for exact, structured queries (counts, filters by zone/date/type) and ChromaDB for semantic, natural-language search — both filled automatically by the same detection pipeline.
-- **🤖 Agentic safety assistant** — a LangGraph tool-calling agent (`create_react_agent`, Gemini-backed) that picks the right tool per question, chains multiple tool calls for multi-step questions, and remembers earlier turns in the same conversation via a memory checkpointer.
+- **🤖 Agentic safety assistant** — a LangGraph tool-calling agent (`create_react_agent`, Groq-backed) that picks the right tool per question, chains multiple tool calls for multi-step questions, and remembers earlier turns in the same conversation via a memory checkpointer.
 - **📝 AI-written incident reports** — a second, narrowly-scoped agent turns raw incident data into a plain-English prose summary, combined into a downloadable PDF alongside structured breakdowns by type and zone.
 - **📈 Live dashboard** — upload footage, watch a progress bar, and see live totals, a violations-by-zone chart, and a per-camera breakdown.
 - **🎥 Multi-camera support** — cameras are real rows in a database (name, zone, source), looped over dynamically, each with its own independent violation tracker.
 - **⚡ Non-blocking processing** — detection runs in a background thread with an auto-refreshing status indicator, so the dashboard never freezes mid-run.
+
+## 🧠 Dynamic Tool-Calling Architecture
+
+Rather than a rigid, hardcoded classifier that pre-sorts questions into fixed categories, the assistant relies on **LLM-driven tool calling** via LangGraph's native `create_react_agent`:
+
+- **Tool registration** — functions in `agents/tools.py` (e.g. `query_sql_db`, `semantic_vector_search`, `calculate_shift_stats`) are exposed to the LLM via LangChain's `@tool` decorator, along with their docstrings and argument schemas.
+- **Dynamic selection at runtime** — on each question, the LLM reads the available tool descriptions and decides on the fly which tool (or sequence of tools) the question actually needs.
+- **Multi-step chaining** — for a comparative question like *"is this week better or worse than last week?"*, there's no single hardcoded "comparison tool." The agent loops: it calls the SQL tool for this week's data, calls it again for last week's, then reasons over both results itself before responding.
+- **Conversational memory** — a LangGraph `MemorySaver` checkpointer persists state across turns, so follow-up questions (*"what about Zone B?"*) work without repeating earlier context.
+
+This design trades a simpler fixed-router architecture for real flexibility: the agent can fall back to a semantic search if a SQL query returns zero rows, chain tools for multi-step reasoning, and stay conversational — all without a separate classification layer to maintain.
+
+## 📝 Executive Safety Report
+
+One click generates an AI-written PDF report combining:
+
+- Executive summary (plain-English prose, written by a narrowly-scoped report-writing agent)
+- Incident statistics
+- Violation-type and zone breakdowns
+- Recommendations
+
+## Architecture
+
+```
+Video
+  │
+YOLOv8 Detection
+  │
+ByteTrack (worker ID)
+  │
+Violation Engine (confidence filter + deduplication)
+  │
+SQLite  +  ChromaDB
+  │
+LangGraph Agent (dynamic tool calling + memory)
+  │
+Streamlit Dashboard
+```
 
 ## How It Works
 
@@ -56,7 +158,7 @@ Video frame → YOLOv8 detection → ByteTrack (worker ID) → confidence filter
     → [snapshot saved] + [SQLite row] + [ChromaDB entry] → Dashboard / Agent
 ```
 
-## Model Evaluation — Day 6 Fine-Tuning Results
+## Model Evaluation — Fine-Tuning Results
 
 The PPE detection model was fine-tuned from the pretrained checkpoint using Ultralytics YOLOv8, then evaluated on a held-out test split. Final results:
 
@@ -70,20 +172,18 @@ The PPE detection model was fine-tuned from the pretrained checkpoint using Ultr
 - Highly accurate at detecting **Hardhats** (0.872 Precision)
 - Excellent at catching **Masks** (0.81 Recall)
 
-*Precision measures how often a flagged violation was actually correct; recall measures how many of the real violations in the test set were actually caught; mAP50 is the standard mean-average-precision score at 50% IoU used to summarize overall detection quality.*
-
-> Add a baseline (pre-fine-tuning) row here for a full before/after comparison — see Day 6 of the Enhancement Guide for the exact `model.val()` steps used to produce these numbers.
+> Add a baseline (pre-fine-tuning) row here for a full before/after comparison — see the Day 6 fine-tuning notes for the exact `model.val()` steps used to produce these numbers.
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Language | Python 3.11 |
-| Computer vision | YOLOv8 (Ultralytics), OpenCV, `supervision` (ByteTrack) |
+| Computer vision | YOLOv8 (Ultralytics), OpenCV (Headless), `supervision` (ByteTrack) |
 | Structured storage | SQLite |
 | Semantic storage | ChromaDB (`PersistentClient`) |
-| Agentic AI | LangChain, LangGraph (`create_react_agent`, `MemorySaver`), Google Gemini (`langchain-google-genai`) |
-| Dashboard | Streamlit, Plotly, `streamlit-autorefresh` |
+| Agentic AI | LangChain, LangGraph (`create_react_agent`, `MemorySaver`), Groq Llama 3.3 70B |
+| Dashboard | Streamlit, Plotly, `streamlit-autorefresh`, `watchdog` |
 | Reporting | fpdf2 |
 | Training / dataset | Roboflow (Construction Site Safety dataset), Google Colab (T4 GPU) |
 
@@ -92,147 +192,113 @@ The PPE detection model was fine-tuned from the pretrained checkpoint using Ultr
 ```text
 smartfactory_copilot/
 ├── app.py                      # Streamlit dashboard (entry point)
-├── config.py                   # Loads GEMINI_API_KEY from .env / st.secrets
-├── requirements.txt
-├── .env                        # Local secrets — never committed
+├── config.py                   # Loads GROQ_API_KEY from .env / st.secrets
+├── requirements.txt             # Pinned cloud-production dependencies
+├── .env                         # Local secrets — never committed
 ├── README.md
 ├── data/
-│   ├── factory.mp4             # Camera 1 test footage
-│   ├── factory2.mp4            # Camera 2 test footage (multi-camera)
+│   ├── factory.mp4              # Camera 1 test footage
+│   ├── factory2.mp4             # Camera 2 test footage (multi-camera)
 │   └── sample.jpg
 ├── database/
-│   ├── db.py                   # SQLite schema, connections, queries
-│   ├── factory.db              # Generated at runtime
-│   └── chroma/                 # ChromaDB persistent vector store
+│   ├── db.py                    # SQLite schema, connections, queries
+│   ├── factory.db                # Generated at runtime
+│   └── chroma/                   # ChromaDB persistent vector store (gitignored)
 ├── models/
-│   ├── detector.py             # Cached YOLOv8 model loading + inference
-│   ├── best.pt                 # Original pretrained PPE weights
-│   └── best_finetuned.pt       # Fine-tuned weights (Day 6)
+│   ├── detector.py               # Cached YOLOv8 model loading + inference
+│   ├── best.pt                   # Original pretrained PPE weights
+│   └── best_finetuned.pt         # Fine-tuned weights
 ├── cctv/
-│   ├── stream.py                # Frame-by-frame video reader
-│   ├── tracker.py                # ByteTrack worker tracking
-│   ├── safety_engine.py          # Violation rules + confidence filter
-│   ├── violation_tracker.py      # Deduplicates violations into incidents
-│   ├── snapshot.py               # Saves proof images per incident
-│   ├── incident_pipeline.py      # Wires detection → storage → RAG
-│   └── multi_camera_runner.py    # Loops detection across active cameras
+│   ├── stream.py                  # Frame-by-frame video reader
+│   ├── tracker.py                  # ByteTrack worker tracking
+│   ├── safety_engine.py            # Violation rules + confidence filter
+│   ├── violation_tracker.py        # Deduplicates violations into incidents
+│   ├── snapshot.py                 # Saves proof images per incident
+│   ├── incident_pipeline.py        # Wires detection → storage → RAG
+│   └── multi_camera_runner.py      # Loops detection across active cameras
 ├── rag/
-│   └── ingest.py                 # ChromaDB ingestion for semantic search
+│   └── ingest.py                    # ChromaDB ingestion for semantic search
 ├── agents/
-│   ├── tools.py                  # SQL lookup / semantic search / stats tools
-│   ├── copilot.py                # Main LangGraph agent (memory-enabled)
-│   └── report_writer.py          # Secondary agent for prose report summaries
+│   ├── tools.py                      # SQL lookup / semantic search / stats tools
+│   ├── copilot.py                    # Main LangGraph agent (memory-enabled)
+│   └── report_writer.py              # Secondary agent for prose report summaries
 ├── reports/
-│   ├── generate_report.py        # PDF safety report builder
-│   └── safety_report.pdf         # Generated on demand
+│   ├── generate_report.py             # PDF safety report builder
+│   └── safety_report.pdf              # Generated on demand
 ├── scripts/
-│   └── setup_cameras.py          # One-time camera registration
+│   └── setup_cameras.py                # One-time camera registration
 ├── assets/
-│   └── incidents/                # Snapshot images (violation proof)
+│   └── incidents/                      # Snapshot images (violation proof)
 └── tests/
     ├── test_detection.py
     ├── test_rag.py
     └── test_agent.py
 ```
 
-## Getting Started
-
-### Prerequisites
-
-- Python 3.11+
-- Git
-- A free [Google Gemini API key](https://aistudio.google.com)
-- (Optional, for retraining) A free [Roboflow](https://roboflow.com) account and access to [Google Colab](https://colab.research.google.com)
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/<your-username>/smartfactory_copilot.git
-cd smartfactory_copilot
-```
-
-### 2. Set up a virtual environment
-
-```bash
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# macOS/Linux
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Add the detection model weights
-
-Model weights aren't committed to this repo (they're large binary files — see the note in the deployment section below). Download `best.pt` from the [Construction Site Safety project on Roboflow](https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety) (or use your own fine-tuned `best_finetuned.pt`) and place it inside `models/`.
-
-### 5. Configure environment variables
-
-Create a `.env` file in the project root:
+## `.gitignore`
 
 ```
-GEMINI_API_KEY=your_actual_key_here
-```
-
-Get a free key at [aistudio.google.com](https://aistudio.google.com). **Never commit `.env` to GitHub** — add it to `.gitignore`.
-
-### 6. (Optional) Register cameras for multi-camera mode
-
-```bash
-python scripts/setup_cameras.py
-```
-
-### 7. Run it
-
-```bash
-streamlit run app.py
-```
-
-The dashboard opens automatically at `http://localhost:8501`.
-
-<details>
-<summary><strong>Suggested <code>.gitignore</code></strong></summary>
-
-```
-# Secrets
+# Environment variables
 .env
+!.env.example
+
+# Python virtual environment
+venv/
+venv311/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Database
+*.db
+factory.db
+database/chroma/
+
+# Streamlit
 .streamlit/secrets.toml
 
-# Virtual environment
-venv/
+# Editors
+.vscode/
+.idea/
 
-# Python
-__pycache__/
-*.pyc
+# Generated reports
+outputs/
+reports/*.pdf
 
-# Runtime-generated data
-database/factory.db
-database/chroma/
+# Generated incident images
 assets/incidents/
-reports/safety_report.pdf
 
-# Large model weights (download manually — see Step 4 in Getting Started)
+# Uploaded videos
+*.mp4
+*.avi
+*.mov
+
+# Model weights (download manually — see Getting Started)
 models/*.pt
 models/*.onnx
+
+# Temp files
+*.tmp
+temp/
+
+# OS
+.DS_Store
+Thumbs.db
 ```
 
-</details>
+> **Note:** if `database/chroma/` was ever committed before this rule was added, adding it to `.gitignore` alone won't remove it from the repo — git only ignores new, untracked files. Run `git rm -r --cached database/chroma` once to fully untrack it, then commit and push.
 
-## Deploying on Streamlit Community Cloud
+## 🔒 Deploying on Streamlit Community Cloud
 
 1. Push this repo to GitHub.
 2. Go to [share.streamlit.io](https://share.streamlit.io), sign in, and click **New app**.
 3. Select your repo and branch, and set the main file path to `app.py`.
 4. Before deploying, open **Advanced settings** and paste your key in TOML format:
    ```toml
-   GEMINI_API_KEY = "your_actual_key_here"
+   GROQ_API_KEY = "your_actual_key_here"
    ```
 5. Click **Deploy**. Your app gets a live URL like `https://<your-app-name>.streamlit.app`.
 6. Need to change a key later? Go to your app's settings from your [share.streamlit.io](https://share.streamlit.io) workspace → **Secrets** — it updates without a redeploy.
@@ -245,7 +311,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
-GEMINI_KEY = os.getenv("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+GROQ_KEY = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
 ```
 
 **A note on file size:** GitHub blocks pushes over 100MB per file. If `best.pt` / `best_finetuned.pt` or your sample videos are large, use [Git LFS](https://git-lfs.com/) or host them elsewhere (a GitHub Release asset, cloud storage bucket) and download them at startup instead of committing them directly.
@@ -273,31 +339,27 @@ Being upfront about what's simplified is part of what makes the rest of the proj
 - **The "heatmap" is zone-level, not pixel-level.** It's a color-scaled bar chart by zone, not a true spatial heatmap overlaid on camera footage.
 - **Role-based login and predictive maintenance are not implemented**, despite appearing in early project notes.
 
-## Roadmap
+## Future Improvements
 
-- [ ] Baseline (pre-fine-tuning) metrics alongside the current results for a full before/after comparison
-- [ ] Real RTSP camera ingestion instead of local video files
-- [ ] Migrate from SQLite to Postgres for concurrent multi-user writes
+- [ ] Multi-camera RTSP streaming instead of local video files
+- [ ] Migrate from SQLite to a PostgreSQL backend for concurrent multi-user writes
+- [ ] Redis caching for faster repeated queries
+- [ ] User authentication / role-based login (Manager / Admin / Safety Officer)
+- [ ] Real-time alert notifications
+- [ ] Cloud object storage for snapshots and reports
+- [ ] Mobile-friendly dashboard
+- [ ] Baseline (pre-fine-tuning) metrics alongside current results for a full before/after comparison
 - [ ] True parallel processing across cameras via multiprocessing / separate workers
 - [ ] Pixel-coordinate heatmap overlay on camera footage
-- [ ] Role-based login (Manager / Admin / Safety Officer)
 - [ ] Date-range picker in the dashboard for custom PDF report windows
 
 ## Acknowledgments
 
 - [Roboflow](https://roboflow.com) and the [Construction Site Safety](https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety) dataset/project for the base PPE detection dataset and pretrained weights
 - [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics)
-- [LangChain / LangGraph](https://www.langchain.com/langgraph) and [Google Gemini](https://ai.google.dev/) for the agentic assistant
+- [LangChain / LangGraph](https://www.langchain.com/langgraph) and [Groq](https://groq.com/) for the agentic assistant
 - [Pexels](https://www.pexels.com/) and [Pixabay](https://pixabay.com/) for free, license-friendly test footage
 
 ## Contributing
 
 This started as a personal learning project, but issues and pull requests are welcome if you spot a bug or have an idea worth adding.
-
-## License
-
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details. *(Add a `LICENSE` file with your preferred license, or update this section to match.)*
-
----
-
-<p align="center"><sub>Built as a hands-on project in applied computer vision and agentic AI.</sub></p>
