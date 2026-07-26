@@ -1,6 +1,7 @@
 import sys
 import os
 import urllib.request
+import cv2
 from ultralytics import YOLO
 import streamlit as st
 
@@ -19,7 +20,7 @@ from database import db
 MODEL_DIR = os.path.join(ROOT_DIR, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "best.pt")
 
-# TODO: Replace this URL with your actual GitHub Release download URL or direct Google Drive link
+# Actual GitHub Release download URL or direct storage link
 MODEL_URL = "https://github.com/shrijamusali-eng/Smartfactory-CCTV-AI-Copilot/releases/download/v1.0.0/best.pt"
 
 @st.cache_resource

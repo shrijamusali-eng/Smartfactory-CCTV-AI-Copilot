@@ -8,6 +8,7 @@ from datetime import datetime
 # ==========================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "factory.db")
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
 
 print(f"📁 SQLite Database: {DB_PATH}")
 
@@ -41,17 +42,11 @@ def init_db():
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS cameras (
-
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-
                 name TEXT UNIQUE,
-
                 zone TEXT,
-
                 source_path TEXT,
-
                 active INTEGER DEFAULT 1
-
             )
             """
         )
@@ -62,32 +57,65 @@ def init_db():
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS events(
-
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-
                 timestamp TEXT,
-
                 camera TEXT,
-
                 zone TEXT,
-
                 worker_id INTEGER,
-
                 event TEXT,
-
                 severity TEXT,
-
                 confidence REAL,
-
                 start_time TEXT,
-
                 end_time TEXT,
-
                 image_path TEXT
-
             )
             """
         )
+
+        # -----------------------------
+        # Safe Migration: run_id Check
+        # -----------------------------
+        cursor = conn.execute("PRAGMA table_info(events)")
+        columns = [row["name"] for row in cursor.fetchall()]
+        
+        if "run_id" not in columns:
+            conn.execute("ALTER TABLE events ADD COLUMN run_id TEXT")
+            print("🔧 Migration: Added 'run_id' column to 'events' table")
+
+        # -----------------------------
+        # Automatic Camera Seeding
+        # -----------------------------
+        default_cameras = [
+            (
+                "Camera 1", 
+                "Assembly Line", 
+                os.path.join(PROJECT_ROOT, "data", "factory1.mp4")
+            ),
+            (
+                "Camera 2", 
+                "Packing Area", 
+                os.path.join(PROJECT_ROOT, "data", "factory2.mp4")
+            ),
+            (
+                "Camera 3", 
+                "Warehouse", 
+                os.path.join(PROJECT_ROOT, "data", "factory3.mp4")
+            ),
+        ]
+
+        for name, zone, source_path in default_cameras:
+            # Only insert the record if the physical file exists on disk
+            if os.path.exists(source_path):
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO cameras (name, zone, source_path)
+                    VALUES (?, ?, ?)
+                    """,
+                    (name, zone, source_path),
+                )
+                print(f"✅ Camera ready: {name} -> {source_path}")
+            else:
+                print(f"⚠️ Camera source not found: {source_path}")
 
     print("✅ Database initialized")
 
@@ -156,6 +184,7 @@ def save_event(
     start_time,
     end_time,
     image_path="",
+    run_id=None,
 ):
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -177,10 +206,10 @@ def save_event(
                     confidence,
                     start_time,
                     end_time,
-                    image_path
+                    image_path,
+                    run_id
                 )
-
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     timestamp,
@@ -193,6 +222,7 @@ def save_event(
                     start_time,
                     end_time,
                     image_path,
+                    run_id,
                 ),
             )
 
